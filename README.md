@@ -1,4 +1,4 @@
-# gorm-zerolog
+# zerolog-gorm
 [![license](https://img.shields.io/github/license/go-mods/zerolog-gorm)](./LICENSE)
 
 Zerolog logger for gorm
