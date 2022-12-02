@@ -136,7 +136,7 @@ func (l GormLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 	for _, f := range l.FieldsOrder {
 		// add time field
 		if f == TimestampFieldName && !l.isExcluded(f) {
-			event.Time(zerolog.TimestampFieldName, begin)
+			event.Time(TimestampFieldName, begin)
 		}
 
 		// add duration field
