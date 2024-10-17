@@ -1,30 +1,71 @@
-# Auto detect text files and perform LF normalization
-*                   text=auto
+# Set the project language
+*.go linguist-language=Go
 
-# Collapse generated and vendored files on GitHub
-AUTHORS             linguist-generated merge=union
-*.gen.*             linguist-generated merge=ours
-*.pb.go             linguist-generated merge=ours
-*.pb.gw.go          linguist-generated merge=ours
-go.sum              linguist-generated merge=ours
-go.mod              linguist-generated
-gen.sum             linguist-generated merge=ours
-depaware.txt        linguist-generated linguist-vendored merge=union
-vendor/*            linguist-vendored
-rules.mk            linguist-vendored
-*/vendor/*          linguist-vendored
+# Set default behavior for all files
+* text=auto eol=lf
 
-# doc
-docs/*              linguist-documentation
-docs/Makefile       linguist-documentation=false
+# Go source files
+*.go text eol=lf
+*.gomod text eol=lf
+*.gosum text eol=lf
 
-# Reduce conflicts on markdown files
-*.md                merge=union
+# Scripts
+*.sh text eol=lf
+*.bash text eol=lf
 
-# A set of files you probably don't want in distribution
-/.github            export-ignore
-/.githooks          export-ignore
-.gitattributes      export-ignore
-.gitignore          export-ignore
-.gitmodules         export-ignore
-/tool/lint          export-ignore
+# Configuration files
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.conf text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.txt text eol=lf
+LICENSE text eol=lf
+README text eol=lf
+
+# Web files
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# Go-specific files
+go.mod text eol=lf
+go.sum text eol=lf
+*.tmpl text eol=lf
+
+# Build and dependency files
+Makefile text eol=lf
+Dockerfile text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Test files
+*.test text eol=lf
+
+# Data files
+*.csv text eol=lf
+*.tsv text eol=lf
+*.sql text eol=lf
+
+# Editor configuration files
+.editorconfig text eol=lf
+
+# Ignore generated files in linguistic diffs
+generated/** linguist-generated=true
+vendor/** linguist-vendored=true
+
+# Ignore generated test files
+testdata/** linguist-generated=true

@@ -142,9 +142,3 @@ fabric.properties
 *.code-workspace
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,go,goland+all
-
-.env.example
-.env.production
-build/
-data/
-*todo*

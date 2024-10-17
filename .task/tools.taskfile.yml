@@ -1,0 +1,69 @@
+# Use Task to define tasks and run them locally or in CI
+# For more information about Task, see https://taskfile.dev/#/usage?id=usage
+version: '3'
+
+# Define tasks
+tasks:
+
+  default:
+    desc: "Run the default install tasks"
+    cmds:
+      - task: install-all
+
+  install-all:
+    desc: "Install or update all third-party tools"
+    cmds:
+      - task: install-golangci-lint
+      - task: install-gosec
+      - task: install-editorconfig-cli
+      - task: install-goimports
+
+  install-golangci-lint:
+    desc: "Install or update golangci-lint"
+    cmds:
+      - |
+        if command -v golangci-lint >/dev/null 2>&1; then
+          echo "Updating golangci-lint..."
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+        else
+          echo "Installing golangci-lint..."
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+        fi
+    silent: true
+
+  install-gosec:
+    desc: "Install or update gosec"
+    cmds:
+      - |
+        if command -v gosec >/dev/null 2>&1; then
+          echo "Updating gosec..."
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+        else
+          echo "Installing gosec..."
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+        fi
+    silent: true
+
+  install-goimports:
+    desc: "Install or update goimports"
+    cmds:
+      - |
+        if command -v goimports >/dev/null 2>&1; then
+          echo "Updating goimports..."
+          go install golang.org/x/tools/cmd/goimports@latest
+        else
+          echo "Installing goimports..."
+          go install golang.org/x/tools/cmd/goimports@latest
+        fi
+    silent: true
+
+  check-versions:
+    desc: "Check versions of installed tools"
+    cmds:
+      - go version
+      - task --version
+      - golangci-lint --version
+      - gosec --version
+      - editorconfig-cli --version
+      - goimports --version
+    silent: true
