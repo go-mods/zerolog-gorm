@@ -4,14 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/glebarez/sqlite"
-	"github.com/go-mods/zerolog-gorm"
-	"github.com/rs/zerolog"
-	"gorm.io/gorm"
 	"io"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/glebarez/sqlite"
+	"github.com/rs/zerolog"
+	"gorm.io/gorm"
+
+	zerologgorm "github.com/go-mods/zerolog-gorm"
 )
 
 type MockWriter struct {

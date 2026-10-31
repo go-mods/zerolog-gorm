@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/glebarez/sqlite"
-	zerologgorm "github.com/go-mods/zerolog-gorm"
-	"github.com/rs/zerolog"
-	"gorm.io/gorm"
 	"os"
 	"time"
+
+	"github.com/glebarez/sqlite"
+	"github.com/rs/zerolog"
+	"gorm.io/gorm"
+
+	zerologgorm "github.com/go-mods/zerolog-gorm"
 )
 
 // User represents a user model

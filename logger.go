@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/rs/zerolog"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/utils"
-	"time"
 )
 
 type GormLogger struct {
@@ -122,7 +123,7 @@ func (l GormLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 	var eventWarn bool
 
 	// set message level
-	if err != nil && !(l.IgnoreRecordNotFoundError && errors.Is(err, gorm.ErrRecordNotFound)) {
+	if err != nil && (!l.IgnoreRecordNotFoundError || !errors.Is(err, gorm.ErrRecordNotFound)) {
 		eventError = true
 		event = z.Error()
 	} else if l.SlowThreshold != 0 && elapsed > l.SlowThreshold {

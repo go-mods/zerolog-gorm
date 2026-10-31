@@ -142,3 +142,9 @@ fabric.properties
 *.code-workspace
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,go,goland+all
+
+# Coverage
+coverage.*
+
+# Task cache (checksums of sources)
+.task/checksum/
