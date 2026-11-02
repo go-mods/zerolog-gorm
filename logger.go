@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/utils"
@@ -34,10 +35,9 @@ type GormLogger struct {
 	logLevel logger.LogLevel
 }
 
-// The field names below are read each time a query is logged. FieldsOrder and
-// FieldsExclude refer to fields by these names, so set them before building a
-// GormLogger, and before any query runs since they are not safe to change
-// concurrently.
+// The field names below are read each time a query is logged, so set them before
+// any query runs: they are not safe to change concurrently. A FieldsOrder or
+// FieldsExclude given to a GormLogger holds names, so build it after setting them.
 var (
 	// TimestampFieldName is the field name used for the timestamp field.
 	TimestampFieldName = zerolog.TimestampFieldName
@@ -58,13 +58,10 @@ var (
 // GormLogger implements the logger.Interface
 var _ logger.Interface = &GormLogger{}
 
-// NewGormLogger creates and initializes a new GormLogger.
+// NewGormLogger creates and initializes a new GormLogger. Its FieldsOrder stays nil:
+// the default order is computed when a query is logged, from the current field names.
 func NewGormLogger() *GormLogger {
-	l := &GormLogger{
-		FieldsOrder: gormDefaultFieldsOrder(),
-	}
-
-	return l
+	return &GormLogger{}
 }
 
 // gormDefaultFieldsOrder defines the default order of fields
@@ -139,7 +136,22 @@ func (l GormLogger) Error(ctx context.Context, msg string, data ...interface{}) 
 	if !l.enabled(logger.Error) {
 		return
 	}
-	zerolog.Ctx(ctx).Error().Msg(fmt.Sprintf(msg, data...))
+	errorLogger(ctx).Error().Msg(fmt.Sprintf(msg, data...))
+}
+
+// errorLogger returns the logger for errors: the one of ctx or, when ctx has none,
+// the global logger of zerolog/log, so that an error is never lost silently.
+func errorLogger(ctx context.Context) *zerolog.Logger {
+	z := zerolog.Ctx(ctx)
+
+	// Without a logger, zerolog.Ctx returns the same shared logger for any context
+	if z.GetLevel() == zerolog.Disabled && z == zerolog.Ctx(context.Background()) {
+		// A copy, because log.Logger may be replaced: see lastTimestampCheck
+		fallback := log.Logger
+		return &fallback
+	}
+
+	return z
 }
 
 // Trace print sql message
@@ -150,10 +162,18 @@ func (l GormLogger) Error(ctx context.Context, msg string, data ...interface{}) 
 // the time at which the query began. To find out, a blank event is written to a
 // private buffer whenever the logger differs from the previous one, which runs its
 // hooks one extra time.
+//
+// A context without a logger only logs failed queries, to the global logger of
+// zerolog/log. To silence them, use LogMode with logger.Silent.
 func (l GormLogger) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
+
+	failed := err != nil && (!l.IgnoreRecordNotFoundError || !errors.Is(err, gorm.ErrRecordNotFound))
 
 	// get zerolog from context
 	z := zerolog.Ctx(ctx)
+	if failed {
+		z = errorLogger(ctx)
+	}
 
 	// return if zerolog is disabled or the level set by LogMode is silent
 	if z.GetLevel() == zerolog.Disabled || !l.enabled(logger.Error) {
@@ -167,12 +187,10 @@ func (l GormLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 	elapsed := time.Since(begin)
 
 	var event *zerolog.Event
-	var eventError bool
 	var eventWarn bool
 
 	// set message level
-	if err != nil && (!l.IgnoreRecordNotFoundError || !errors.Is(err, gorm.ErrRecordNotFound)) {
-		eventError = true
+	if failed {
 		event = z.Error()
 	} else if l.SlowThreshold != 0 && elapsed > l.SlowThreshold && l.enabled(logger.Warn) {
 		eventWarn = true
@@ -183,12 +201,17 @@ func (l GormLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 		return
 	}
 
+	// nothing will be written: spare building the SQL and looking up the caller
+	if !event.Enabled() {
+		return
+	}
+
 	sql, rows := fc()
 
 	// add fields
 	for _, f := range l.FieldsOrder {
 		// add time field
-		if f == TimestampFieldName && !l.isExcluded(f) && event.Enabled() && !loggerHasTimestamp(z) {
+		if f == TimestampFieldName && !l.isExcluded(f) && !loggerHasTimestamp(z) {
 			event.Time(TimestampFieldName, begin)
 		}
 
@@ -236,7 +259,7 @@ func (l GormLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 	}
 
 	// post the message
-	if eventError {
+	if failed {
 		event.Msg("SQL error")
 	} else if eventWarn {
 		event.Msg("SQL slow query")

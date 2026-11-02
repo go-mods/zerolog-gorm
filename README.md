@@ -53,6 +53,8 @@ func main() {
 }
 ```
 
+The logger is read from the context of each query, and `db.WithContext(ctx)` replaces that context: `ctx` must carry the logger too. With a context that has no logger, only failed queries are logged, to the global logger of `zerolog/log`.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.

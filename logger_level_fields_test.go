@@ -10,6 +10,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -319,6 +320,92 @@ func Test_Timestamp(t *testing.T) {
 	})
 }
 
+func Test_NoLoggerInContext(t *testing.T) {
+	failure := errors.New("failure")
+
+	// useGlobalLogger replaces the global logger for the duration of the test.
+	useGlobalLogger := func(t *testing.T) *bytes.Buffer {
+		t.Helper()
+
+		old := log.Logger
+		t.Cleanup(func() { log.Logger = old })
+
+		var out bytes.Buffer
+		log.Logger = zerolog.New(&out)
+
+		return &out
+	}
+	query := func() (string, int64) { return testSQL, testRows }
+
+	t.Run("failed query goes to the global logger", func(t *testing.T) {
+		out := useGlobalLogger(t)
+
+		(&zerologgorm.GormLogger{}).Trace(context.Background(), time.Now(), query, failure)
+
+		assert.Contains(t, out.String(), "SQL error")
+		assert.Contains(t, out.String(), testSQL)
+	})
+
+	t.Run("error message goes to the global logger", func(t *testing.T) {
+		out := useGlobalLogger(t)
+
+		(&zerologgorm.GormLogger{}).Error(context.Background(), "failure")
+
+		assert.Contains(t, out.String(), "failure")
+	})
+
+	t.Run("successful query stays silent", func(t *testing.T) {
+		out := useGlobalLogger(t)
+
+		(&zerologgorm.GormLogger{}).Trace(context.Background(), time.Now(), query, nil)
+
+		assert.Empty(t, out.String())
+	})
+
+	t.Run("ignored not found stays silent", func(t *testing.T) {
+		out := useGlobalLogger(t)
+		l := &zerologgorm.GormLogger{IgnoreRecordNotFoundError: true}
+
+		l.Trace(context.Background(), time.Now(), query, gorm.ErrRecordNotFound)
+
+		assert.Empty(t, out.String())
+	})
+
+	t.Run("silent level stays silent", func(t *testing.T) {
+		out := useGlobalLogger(t)
+		l := (&zerologgorm.GormLogger{}).LogMode(logger.Silent)
+
+		l.Trace(context.Background(), time.Now(), query, failure)
+		l.Error(context.Background(), "failure")
+
+		assert.Empty(t, out.String())
+	})
+
+	t.Run("logger disabled in the context stays silent", func(t *testing.T) {
+		out := useGlobalLogger(t)
+		ctx, _ := newLogContext()
+		ctx = zerolog.Nop().WithContext(ctx)
+
+		(&zerologgorm.GormLogger{}).Trace(ctx, time.Now(), query, failure)
+
+		assert.Empty(t, out.String())
+	})
+}
+
+func Test_Trace_SkipsWorkWhenNothingIsWritten(t *testing.T) {
+	out := NewMockWriter()
+	ctx := zerolog.New(out).Level(zerolog.InfoLevel).WithContext(context.Background())
+
+	called := false
+	(&zerologgorm.GormLogger{}).Trace(ctx, time.Now(), func() (string, int64) {
+		called = true
+		return testSQL, testRows
+	}, nil)
+
+	assert.False(t, called)
+	assert.Empty(t, out.Entries)
+}
+
 func Test_FieldNames(t *testing.T) {
 	// setFieldNames changes the package-level names for the duration of the test.
 	setFieldNames := func(t *testing.T, file, sql, rows string) {
@@ -360,6 +447,18 @@ func Test_FieldNames(t *testing.T) {
 				assert.NotContains(t, entries[0], "rows")
 			})
 		}
+	})
+
+	t.Run("names set after NewGormLogger still apply", func(t *testing.T) {
+		l := zerologgorm.NewGormLogger()
+		setFieldNames(t, "caller", "query", "affected")
+
+		entries, _ := traceQuery(l, time.Now(), nil)
+
+		require.Len(t, entries, 1)
+		assert.Contains(t, entries[0], "caller")
+		assert.Equal(t, testSQL, entries[0]["query"])
+		assert.EqualValues(t, testRows, entries[0]["affected"])
 	})
 
 	t.Run("custom names work with FieldsExclude", func(t *testing.T) {
